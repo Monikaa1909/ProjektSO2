@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <semaphore.h>
+#include <unistd.h>
 
 long readers;
 long writers;
@@ -29,19 +30,19 @@ void *writer (){
     printf("Tu writer\n");
 
 //    while (1) {
-        readersQ++;  // mamy czytelnika w kolejce
+        writersQ++;  // mamy czytelnika w kolejce
         printf("ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
 
 //        wychodzi z kolejki i wchodzi do środka i blokuje pozostałym pisarzom możliwość pisania:
         sem_wait(&writing);
-        readersQ--;
-        readersIn++;
+        writersQ--;
+        writersIn++;
         sleep(1);
         printf("ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
 
 //        wychodzi ze środka i odblokowuje dostęp dla pisarzy:
         sem_post(&writing);
-        readersIn--;
+        writersIn--;
 //    }
 
     pthread_exit(0);
