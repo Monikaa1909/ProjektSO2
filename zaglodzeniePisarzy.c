@@ -31,6 +31,17 @@ void *writer (){
 //    while (1) {
         readersQ++;  // mamy czytelnika w kolejce
         printf("ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
+
+//        wychodzi z kolejki i wchodzi do środka i blokuje pozostałym pisarzom możliwość pisania:
+        sem_wait(&writing);
+        readersQ--;
+        readersIn++;
+        sleep(1);
+        printf("ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
+
+//        wychodzi ze środka i odblokowuje dostęp dla pisarzy:
+        sem_post(&writing);
+        readersIn--;
 //    }
 
     pthread_exit(0);
@@ -80,7 +91,7 @@ int main (int argc, char *argv[]){
         if ((err = pthread_create( &writersThreads[i], NULL, &writer, NULL)) != 0) {
             fprintf (stderr, "Thread creation error = %d (%s)\n", err, strerror (err));
             exit(EXIT_FAILURE);
-        };
+        }
     }
 
 //    for (int i = 0; i < writers; ++i) {
