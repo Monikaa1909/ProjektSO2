@@ -22,27 +22,55 @@ int readersIn;   // czytelnicy w środku
 int writersIn;   // pisarze w środku
 
 void *reader (){
-    printf("Tu reader\n");
-    pthread_exit(0);
+
+//    while(1) {
+        readersQ++; // czytelnik wchodzi do kolejki
+        printf("ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
+
+//        czeka na możliwość wejścia, wychodzi z kolejki, wchodzi do środka:
+        sem_wait(&reading);
+
+        if (readersIn == 0) {   // jeżeli będzie pierwszym czytelnikiem, blokuje pisarzom możliwość pisania:
+            sem_wait(&writing);
+        }
+
+        readersQ--;
+        readersIn++;
+        sem_post(&reading);
+        printf("ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
+        sleep(3);
+
+//        wychodzi ze środka:
+        readersIn--;
+        printf("ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
+        if (readersIn == 0) {   // jeżeli był ostatnim czytelnikiem, odblokowuje pisarzom możliwość pisania:
+            sem_post(&writing);
+        }
+//        sleep(3);
+
+        pthread_exit(0);
+//    }
+
 }
 
 void *writer (){
-    printf("Tu writer\n");
 
 //    while (1) {
-        writersQ++;  // mamy czytelnika w kolejce
+        writersQ++;  // pisarz wchodzi do kolejki=
         printf("ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
 
-//        wychodzi z kolejki i wchodzi do środka i blokuje pozostałym pisarzom możliwość pisania:
+//        czeka na możliwość wejścia, wychodzi z kolejki, wchodzi do środka i blokuje pozostałym pisarzom możliwość pisania:
         sem_wait(&writing);
         writersQ--;
         writersIn++;
-        sleep(1);
         printf("ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
+        sleep(3);
 
 //        wychodzi ze środka i odblokowuje dostęp dla pisarzy:
-        sem_post(&writing);
         writersIn--;
+        printf("ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
+        sem_post(&writing);
+//        sleep(3);
 //    }
 
     pthread_exit(0);
@@ -96,11 +124,11 @@ int main (int argc, char *argv[]){
     }
 
 //    for (int i = 0; i < writers; ++i) {
-//        pthread_join(writersThreads[i], NULL);
+//        pthread_join(readersThreads[i], NULL);
 //    }
 //
 //    for (int i = 0; i < readers; ++i) {
-//        pthread_join(readersThreads[i], NULL);
+//        pthread_join(writersThreads[i], NULL);
 //    }
 
     pthread_exit(0);
