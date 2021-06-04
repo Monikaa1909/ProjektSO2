@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <semaphore.h>
 #include <unistd.h>
+#include <stdint.h>
 
 long readers;
 long writers;
@@ -21,14 +22,9 @@ int writersQ;    // pisarze w kolejce
 int readersIn;   // czytelnicy w środku
 int writersIn;   // pisarze w środku
 
-int czytelnik = 1;
-int pisarz = 1;
-
-void *reader (){
-
+void *reader (void *arg){
+    int nr = *((int*)arg);
     while(1) {
-        int nr = czytelnik;
-        czytelnik++;
         readersQ++; // czytelnik wchodzi do kolejki
         printf("(wejście czytelnika nr %d do kolejki) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", nr, readersQ, writersQ, readersIn, writersIn);
 
@@ -48,13 +44,13 @@ void *reader (){
         sleep(2);
 
         // wychodzi ze środka:
-//        sem_wait(&reading);
+        sem_wait(&reading);
         readersIn--;
         printf("(wyjście czytelnika nr %d ze środka) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", nr, readersQ, writersQ, readersIn, writersIn);
         if (readersIn == 0) {   // jeżeli był ostatnim czytelnikiem, odblokowuje pisarzom możliwość pisania:
             sem_post(&writing);
         }
-//        sem_post(&reading);
+        sem_post(&reading);
 
         // czas, po którym czytelnik wróci do kolejki:
         sleep(4);
@@ -62,11 +58,9 @@ void *reader (){
     return 0;
 }
 
-void *writer (){
-
+void *writer (void *arg){
+    int nr = *((int*)arg);
     while (1) {
-        int nr = pisarz;
-        pisarz++;
         writersQ++;  // pisarz wchodzi do kolejki
         printf("(wejście pisarza nr %d do kolejki) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", nr, readersQ, writersQ, readersIn, writersIn);
 
@@ -132,16 +126,20 @@ int main (int argc, char *argv[]){
     }
 
 //    stworzenie wątku dla każdego czytelnika i pisarza:
-    int err;
+    int err, *nr;
     for (int i = 0; i < readers; i++) {
-        if ((err = pthread_create( &readersThreads[i], NULL, &reader, NULL)) != 0) {
+        nr = (int*)malloc(sizeof(int));
+        *nr = i;
+        if ((err = pthread_create( &readersThreads[i], NULL, &reader, nr)) != 0) {
             fprintf (stderr, "Thread creation error = %d (%s)\n", err, strerror (err));
             exit(EXIT_FAILURE);
         }
     }
 
     for (int i = 0; i < writers; i++) {
-        if ((err = pthread_create( &writersThreads[i], NULL, &writer, NULL)) != 0) {
+        nr = (int*)malloc(sizeof(int));
+        *nr = i;
+        if ((err = pthread_create( &writersThreads[i], NULL, &writer, nr)) != 0) {
             fprintf (stderr, "Thread creation error = %d (%s)\n", err, strerror (err));
             exit(EXIT_FAILURE);
         }
