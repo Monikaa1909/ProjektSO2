@@ -21,11 +21,16 @@ int writersQ;    // pisarze w kolejce
 int readersIn;   // czytelnicy w środku
 int writersIn;   // pisarze w środku
 
+int czytelnik = 1;
+int pisarz = 1;
+
 void *reader (){
 
     while(1) {
+        int nr = czytelnik;
+        czytelnik++;
         readersQ++; // czytelnik wchodzi do kolejki
-        printf("(wejście czytelnika do kolejki) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
+        printf("(wejście czytelnika nr %d do kolejki) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", nr, readersQ, writersQ, readersIn, writersIn);
 
         // czeka na możliwość wejścia, wychodzi z kolejki, wchodzi do środka:
         sem_wait(&reading);
@@ -36,20 +41,23 @@ void *reader (){
 
         readersQ--;
         readersIn++;
-        printf("(wejście czytelnika do środka) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
+        printf("(wejście czytelnika nr %d do środka) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", nr, readersQ, writersQ, readersIn, writersIn);
         sem_post(&reading);
 
         // korzysta z biblioteki:
-        sleep(3);
+        sleep(2);
 
         // wychodzi ze środka:
-        sem_wait(&reading);
+//        sem_wait(&reading);
         readersIn--;
-        printf("(wyjście czytelnika ze środka) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
+        printf("(wyjście czytelnika nr %d ze środka) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", nr, readersQ, writersQ, readersIn, writersIn);
         if (readersIn == 0) {   // jeżeli był ostatnim czytelnikiem, odblokowuje pisarzom możliwość pisania:
             sem_post(&writing);
         }
-        sem_post(&reading);
+//        sem_post(&reading);
+
+        // czas, po którym czytelnik wróci do kolejki:
+        sleep(4);
     }
     return 0;
 }
@@ -57,22 +65,27 @@ void *reader (){
 void *writer (){
 
     while (1) {
+        int nr = pisarz;
+        pisarz++;
         writersQ++;  // pisarz wchodzi do kolejki
-        printf("(wejście pisarza do kolejki) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
+        printf("(wejście pisarza nr %d do kolejki) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", nr, readersQ, writersQ, readersIn, writersIn);
 
         //  na możliwość wejścia, wychodzi z kolejki, wchodzi do środka i blokuje pozostałym pisarzom możliwość pisania:
         sem_wait(&writing);
         writersQ--;
         writersIn++;
-        printf("(wejście pisarza do środka) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
+        printf("(wejście pisarza nr %d do środka) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", nr, readersQ, writersQ, readersIn, writersIn);
 
         // pisarz korzysta z biblioteki:
-        sleep(3);
+        sleep(2);
 
         // wychodzi ze środka i odblokowuje dostęp dla pisarzy:
         writersIn--;
-        printf("(wyjście pisarza ze środka) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", readersQ, writersQ, readersIn, writersIn);
+        printf("(wyjście pisarza nr %d ze środka) ReaderQ: %d WriterQ: %d [in: R:%d W:%d]\n", nr, readersQ, writersQ, readersIn, writersIn);
         sem_post(&writing);
+
+        // czas, po którym pisarz wróci do kolejki:
+        sleep(4);
     }
     return 0;
 }
