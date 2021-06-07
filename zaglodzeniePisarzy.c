@@ -138,7 +138,7 @@ void *writer (void *arg){
         // pisarz wchodzi do kolejki:
         writersInQueue[nr] = 1;
 
-        //  na możliwość wejścia, wychodzi z kolejki, wchodzi do środka i blokuje pozostałym pisarzom możliwość pisania:
+        //  ma możliwość wejścia, wychodzi z kolejki, wchodzi do środka i blokuje pozostałym pisarzom możliwość pisania:
         sem_wait(&writing);
         writersInQueue[nr] = 0;
         writersInReadingRoom[nr] = 1;
