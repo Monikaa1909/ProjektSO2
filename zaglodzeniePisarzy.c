@@ -90,9 +90,8 @@ void whoIsWhere() {
 }
 
 void waiting() {
-    time_t tt;
-    srand(time(&tt));
-    sleep(rand()%1+4);
+    srand(time(NULL));
+    sleep(1 + rand() % (5-1+1));
 }
 
 void *reader (void *arg){
