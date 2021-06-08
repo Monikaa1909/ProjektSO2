@@ -136,17 +136,6 @@ void init() {
         readersInReadingRoom[i] = 0;
         readersInQueue[i] = 0;
     }
-
-    // inicjalizacja semaforów:
-    if (sem_init(&reading, 0, 1) != 0) {
-        perror("Sem_init error");
-        exit(EXIT_FAILURE);
-    }
-
-    if (sem_init(&writing, 0, 1) != 0) {
-        perror("Sem_init error");
-        exit(EXIT_FAILURE);
-    }
 }
 
 void *reader (void *arg){
@@ -163,7 +152,7 @@ void *reader (void *arg){
         }
         readersInQueue[nr] = 0;
         readersInReadingRoom[nr] = 1;
-//        printf("\n(wejście czytelnika nr %d do środka)\n", nr);
+        printf("\n(wejście czytelnika nr %d do środka)\n", nr);
 
         whoIsWhere();
 
@@ -197,7 +186,7 @@ void *writer (void *arg){
         sem_wait(&writing);
         writersInQueue[nr] = 0;
         writersInReadingRoom[nr] = 1;
-//        printf("\n(wejście pisarza nr %d do środka) \n", nr);
+        printf("\n(wejście pisarza nr %d do środka) \n", nr);
 
         whoIsWhere();
 
@@ -219,8 +208,7 @@ int main (int argc, char *argv[]){
     if (argc < 3 || argc > 4) {
         perror("Wrong arguments");
         exit(EXIT_FAILURE);
-    }
-    else {
+    } else {
         char *c;
         numberOfReaders = strtol(argv[1], &c, 10);
         numberOfWriters = strtol(argv[2], &c, 10);
@@ -235,9 +223,20 @@ int main (int argc, char *argv[]){
 
     init();
 
+    // inicjalizacja semaforów:
+    if (sem_init(&reading, 0, 1) != 0) {
+        perror("Sem_init error");
+        exit(EXIT_FAILURE);
+    }
+
+    if (sem_init(&writing, 0, 1) != 0) {
+        perror("Sem_init error");
+        exit(EXIT_FAILURE);
+    }
+
     printf("Program wypisuje aktualny stan kolejki i czytelni za każdym razem, gdy kolejna osoba wejdzie do środka.\n");
 
-//    stworzenie wątku dla każdego czytelnika i pisarza:
+    //    stworzenie wątku dla każdego czytelnika i pisarza:
     int *nr;
     for (int i = 0; i < numberOfReaders; i++) {
         nr = (int*)malloc (sizeof(int));
@@ -278,8 +277,8 @@ int main (int argc, char *argv[]){
     free(writersInQueue);
     free(readersInReadingRoom);
     free(writersInReadingRoom);
-    sem_destroy(&reading);
-    sem_destroy(&writing);
+    sem_destroy(&reader);
+    sem_destroy(&writer);
 
     pthread_exit(0);
 }

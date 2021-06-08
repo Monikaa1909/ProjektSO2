@@ -12,9 +12,9 @@ long numberOfWriters;
 bool debug = false;
 
 sem_t reader;
-sem_t writer;   // możliwość wejścia dla pisarza
-sem_t resource;
-sem_t tryResource;  //
+sem_t writer;
+sem_t resource; // dostęp do czytelni
+sem_t tryResource;  //  czy warto w ogóle próbować dostać się do czytelni
 
 pthread_t *readersThreads;
 pthread_t *writersThreads;
@@ -114,7 +114,7 @@ void *reader_(void *arg) {
 
         readersInQueue[nr] = 0;
         readersInReadingRoom[nr] = 1;
-//        printf("\n(wejście czytelnika nr %d do środka)", nr);
+        printf("\n(wejście czytelnika nr %d do środka)", nr);
 
         whoIsWhere();
 
@@ -148,7 +148,7 @@ void *writer_(void *arg) {
         if (numberOfWaitingWriters == 1) {   // jeżeli jest pierwszym pisarzem w kolejce, blokuje możliwość próby wejścia do czytelni dla czytelników:
             sem_wait(&tryResource);
         }
-//        printf("\n(wejście pisarza nr %d do kolejki alert)\n", nr);
+        printf("\n(wejście pisarza nr %d do kolejki!)\n", nr);
         writersInQueue[nr] = 1;
         sem_post(&writer);
 
@@ -156,8 +156,9 @@ void *writer_(void *arg) {
         sem_wait(&resource);
         writersInQueue[nr] = 0;
         writersInReadingRoom[nr] = 1;
-//        printf("\n(wejście pisarza nr %d do środka)", nr);
+        printf("\n(wejście pisarza nr %d do środka)", nr);
         whoIsWhere();
+
         // korzysta z biblioteki:
         waiting();
 
@@ -186,27 +187,6 @@ void init() {
 
     if ((writersThreads = malloc (sizeof(pthread_t) * numberOfWriters)) == NULL) {
         perror("Allocation error");
-        exit(EXIT_FAILURE);
-    }
-
-    // inicjalizacja semaforów:
-    if (sem_init(&reader, 0, 1) != 0) {
-        perror("Sem init error!");
-        exit(EXIT_FAILURE);
-    }
-
-    if (sem_init(&writer, 0, 1) != 0) {
-        perror("Sem init error!");
-        exit(EXIT_FAILURE);
-    }
-
-    if (sem_init(&resource, 0, 1) != 0) {
-        perror("Sem init error!");
-        exit(EXIT_FAILURE);
-    }
-
-    if (sem_init(&tryResource, 0, 1) != 0) {
-        perror("Sem init error!");
         exit(EXIT_FAILURE);
     }
 
@@ -248,8 +228,7 @@ int main (int argc, char *argv[]) {
     if (argc < 3 || argc > 4) {
         printf("Invalid number of arguments!\n");
         exit(EXIT_FAILURE);
-    }
-    else {
+    } else {
         char *c;
         numberOfReaders = strtol(argv[1], &c, 10);
         numberOfWriters = strtol(argv[2], &c, 10);
@@ -263,6 +242,27 @@ int main (int argc, char *argv[]) {
     }
 
     init();
+
+    // inicjalizacja semaforów:
+    if (sem_init(&reader, 0, 1) != 0) {
+        perror("Sem init error!");
+        exit(EXIT_FAILURE);
+    }
+
+    if (sem_init(&writer, 0, 1) != 0) {
+        perror("Sem init error!");
+        exit(EXIT_FAILURE);
+    }
+
+    if (sem_init(&resource, 0, 1) != 0) {
+        perror("Sem init error!");
+        exit(EXIT_FAILURE);
+    }
+
+    if (sem_init(&tryResource, 0, 1) != 0) {
+        perror("Sem init error!");
+        exit(EXIT_FAILURE);
+    }
 
     printf("Program wypisuje aktualny stan kolejki i czytelni za każdym razem, gdy kolejna osoba wejdzie do środka.\n");
 

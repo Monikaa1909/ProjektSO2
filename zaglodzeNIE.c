@@ -11,24 +11,18 @@ long numberOfReaders;
 long numberOfWriters;
 bool debug = false;
 
-int writersQ = 0;
-int readersQ = 0;
-
 pthread_t *writersThreads;
 pthread_t *readersThreads;
 
-int writersIn = 0;
-int readersIn = 0;
+int numberOfWritersInQueue_ = 0;
+int numberOfReadersInQueue_ = 0;
+int numberOfWritersInReadingRoom_ = 0;
+int numberOfReadersInReadingRoom_ = 0;
 
 int *readersInQueue = 0;    // tablica czytelników w kolejce
 int *writersInQueue = 0;    // tablica pisarzy w kolejce
 int *readersInReadingRoom = 0;  // tablica czytelników w czytelni
 int *writersInReadingRoom = 0;  // tablica pisarzy w czytelni
-
-
-pthread_cond_t canRead = PTHREAD_COND_INITIALIZER;
-pthread_cond_t canWrite = PTHREAD_COND_INITIALIZER;
-pthread_mutex_t mutexInit = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_cond_t reader = PTHREAD_COND_INITIALIZER;   // zmienna warunkowa pozwalająca na czytanie dla czytelnika
 pthread_cond_t writer = PTHREAD_COND_INITIALIZER;  // zmienna warunkowa pozwalająca na pisanie dla pisarza
@@ -136,27 +130,6 @@ void init(){
         exit(EXIT_FAILURE);
     }
 
-    // inicjalizacja tablic przechowująca czytelników i pisarzy w kolejce i w czytelni:
-    if ((writersInQueue = malloc (sizeof(int) * numberOfWriters)) == NULL) {
-        perror("Allocation error");
-        exit(EXIT_FAILURE);
-    }
-
-    if ((writersInReadingRoom = malloc (sizeof(int) * numberOfWriters)) == NULL) {
-        perror("Allocation error");
-        exit(EXIT_FAILURE);
-    }
-
-    for (int i = 0; i < numberOfWriters; i++) {
-        writersInReadingRoom[i] = 0;
-        writersInQueue[i] = 0;
-    }
-
-    if ((readersInQueue = malloc (sizeof(int) * numberOfReaders)) == NULL) {
-        perror("Allocation error");
-        exit(EXIT_FAILURE);
-    }
-
     if ((readersInReadingRoom = malloc (sizeof(int) *numberOfReaders)) == NULL) {
         perror("Allocation error");
         exit(EXIT_FAILURE);
@@ -172,80 +145,104 @@ void *writer_(void *arg) {
     int nr = *((int*)arg);
     while(1) {
         pthread_mutex_lock(&mutex);
-        if(writersIn || readersIn > 0) {
-            writersQ++;
+
+        // jeśli ktoś jest w czytelni:
+        if(numberOfWritersInReadingRoom_ || numberOfReadersInReadingRoom_ > 0) {
+            // pisarz wchodzi do kolejki
+            printf("\n(wejście pisarza nr %d do kolejki)\n", nr);
+            numberOfWritersInQueue_++;
             writersInQueue[nr] = 1;
-//            printf("ReaderQ: %d WriterQ: %d [in: R: %d W: %d]\n", readersQ, writersQ, readersIn, writersIn);
+
+            // czeka na możliwość wejścia i wychodzi z kolejki:
             pthread_cond_wait(&writer, &mutex);
-            writersQ--;
+            numberOfWritersInQueue_--;
             writersInQueue[nr] = 0;
         }
-        writersIn = 1;
+
+        // wchodzi do środka:
+        numberOfWritersInReadingRoom_ = 1;
         writersInReadingRoom[nr] = 1;
         pthread_mutex_unlock(&mutex);
         printf("\n(wejście pisarza nr %d do środka)", nr);
-//        printf("ReaderQ: %d WriterQ: %d [in: R: %d W: %d]\n", readersQ, writersQ, readersIn, writersIn);
         whoIsWhere();
+
+        // korzysta z biblioteki:
         waiting();
 
+        // wychodzi ze środka:
         pthread_mutex_lock(&mutex);
-        writersIn = 0;
+        numberOfWritersInReadingRoom_ = 0;
         writersInReadingRoom[nr] = 0;
 
-        if (readersQ > 0) {
+        // jeśli w kolejce są jacyś czytelnicy, wpuszcza ich:
+        if (numberOfReadersInQueue_ > 0) {
             pthread_cond_broadcast(&reader);
-        } else {
+        }
+
+        // jeśli nie, wpuszcza pierwszego z kolejki pisarza:
+        else {
             pthread_cond_broadcast(&writer);
         }
         pthread_mutex_unlock(&mutex);
+
+        // czas, po którym czytelnik wróci do kolejki:
         waiting();
     }
+    pthread_exit(0);
 }
 
 void *reader_(void *arg) {
     int nr = *((int*)arg);
     while(1) {
         pthread_mutex_lock(&mutex);
-        if(writersIn || writersQ > 0) {
-            readersQ++;
+        // jeśli w czytelni jest pisarz lub jakiś pisarz czeka w kolejce:
+        if(numberOfWritersInReadingRoom_ || numberOfWritersInQueue_ > 0) {
+            // czytelnik wchodzi do kolejki:
+            numberOfReadersInQueue_++;
             readersInQueue[nr] = 1;
-//            printf("ReaderQ: %d WriterQ: %d [in: R: %d W: %d]\n", readersQ, writersQ, readersIn, writersIn);
+            printf("\n(wejście czytelnika nr %d do kolejki)\n", nr);
+
+            // czeka na możliwość czytania i wychodzi z kolejki:
             pthread_cond_wait(&reader, &mutex);
-            readersQ--;
+            numberOfReadersInQueue_--;
             readersInQueue[nr] = 0;
         }
 
-        readersIn++;
+        // wchodzi do środka:
+        numberOfReadersInReadingRoom_++;
         readersInReadingRoom[nr] = 1;
         printf("\n(wejście czytelnika nr %d do środka)", nr);
         whoIsWhere();
-//        printf("ReaderQ: %d WriterQ: %d [in: R: %d W: %d]\n", readersQ, writersQ, readersIn, writersIn);
+
+        // pozwala na wejście dla pozostałych czytelników z kolejki:
         pthread_cond_broadcast(&reader);
         pthread_mutex_unlock(&mutex);
-        
+
+        // korzysta z biblioteki:
         waiting();
-    
+
+        // wychodzi ze środka:
         pthread_mutex_lock(&mutex);
-        readersIn--;
+        numberOfReadersInReadingRoom_--;
         readersInReadingRoom[nr] = 0;
-//        printf("ReaderQ: %d WriterQ: %d [in: R: %d W: %d]\n", readersQ, writersQ, readersIn, writersIn);
-        
-        if(readersIn == 0) {
+
+        // jeśli był ostatnim czytelnikiem w środku, wpuszcza pisarza, który jest pierwszy w kolejce:
+        if(numberOfReadersInReadingRoom_ == 0) {
             pthread_cond_signal(&writer);
         }
 
         pthread_mutex_unlock(&mutex);
         waiting();
     }
+    pthread_exit(0);
 }
 
 int main(int argc, char *argv[]) {
-// wczytanie ilości czytelników i pisarzy oraz ewentualnie opcji -debug:
+    // wczytanie ilości czytelników i pisarzy oraz ewentualnie opcji -debug:
     if (argc < 3 || argc > 4) {
         printf("Invalid number of arguments!\n");
         exit(EXIT_FAILURE);
-    }
-    else {
+    } else {
         char *c;
         numberOfReaders = strtol(argv[1], &c, 10);
         numberOfWriters = strtol(argv[2], &c, 10);
@@ -259,6 +256,8 @@ int main(int argc, char *argv[]) {
     }
 
     init();
+
+    printf("Program wypisuje aktualny stan kolejki i czytelni za każdym razem, gdy kolejna osoba wejdzie do środka.\n");
 
     // stworzenie wątku dla każdego czytelnika i pisarza:
     int *nr;
@@ -296,6 +295,10 @@ int main(int argc, char *argv[]) {
 
     free(readersThreads);
     free(writersThreads);
+    free(readersInQueue);
+    free(writersInQueue);
+    free(readersInReadingRoom);
+    free(writersInReadingRoom);
 
     exit(EXIT_SUCCESS);
 }
