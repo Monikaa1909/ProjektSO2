@@ -8,9 +8,9 @@
 #include <stdint.h>
 #include <time.h>
 
-long numberOfReaders;
-long numberOfWriters;
-bool debug = false;
+long numberOfReaders;   // ilość wszystkich czytelników
+long numberOfWriters;   // ilość wszystkich pisarzy
+bool debug = false; // opcja wypisująca dokładną zawartość kolejki i czytelni
 
 pthread_t *readersThreads;  // tablica wątków czytelników
 pthread_t *writersThreads;  // tablica wątków pisarzy
@@ -42,7 +42,7 @@ void whoIsWhere() {
             queue = true;
             numberOfReadersInQueue++;
             if (debug == true) {
-                printf("czytelnik nr %d. ", i);
+                printf("czytelnik nr %d ", i);
             }
         }
     }
@@ -51,7 +51,7 @@ void whoIsWhere() {
             queue = true;
             numberOfWritersInQueue++;
             if (debug == true) {
-                printf("pisarz nr %d. ", i);
+                printf("pisarz nr %d ", i);
             }
         }
     }
@@ -67,7 +67,7 @@ void whoIsWhere() {
             readingRoom = true;
             numberOfReadersInReadingRoom++;
             if (debug == true) {
-                printf("czytelnik nr %d. ", i);
+                printf("czytelnik nr %d ", i);
             }
         }
     }
@@ -76,7 +76,7 @@ void whoIsWhere() {
             readingRoom = true;
             numberOfWritersInReadingRoom++;
             if (debug == true) {
-                printf("pisarz nr %d. ", i);
+                printf("pisarz nr %d ", i);
             }
         }
     }
@@ -94,90 +94,7 @@ void waiting() {
     sleep(1 + rand() % (5-1+1));
 }
 
-void *reader (void *arg){
-    int nr = *((int*)arg);
-    while(1) {
-        // czytelnik wchodzi do kolejki
-        readersInQueue[nr] = 1;
-
-        // czeka na możliwość wejścia, wychodzi z kolejki, wchodzi do środka:
-        sem_wait(&reading);
-        numberOfUsingResources++;
-        if (numberOfUsingResources == 1) {   // jeżeli będzie pierwszym czytelnikiem, blokuje pisarzom możliwość pisania:
-            sem_wait(&writing);
-        }
-        readersInQueue[nr] = 0;
-        readersInReadingRoom[nr] = 1;
-        printf("\n(wejście czytelnika nr %d do środka)\n", nr);
-
-        whoIsWhere();
-
-        sem_post(&reading);
-
-        // korzysta z biblioteki:
-        waiting();
-
-        // wychodzi ze środka:
-        sem_wait(&reading);
-        numberOfUsingResources--;
-        if (numberOfUsingResources == 0) {   // jeżeli był ostatnim czytelnikiem, odblokowuje pisarzom możliwość pisania:
-            sem_post(&writing);
-        }
-        readersInReadingRoom[nr] = 0;
-        sem_post(&reading);
-
-        // czas, po którym czytelnik wróci do kolejki:
-        waiting();
-    }
-    return 0;
-}
-
-void *writer (void *arg){
-    int nr = *((int*)arg);
-    while (1) {
-        // pisarz wchodzi do kolejki:
-        writersInQueue[nr] = 1;
-
-        //  ma możliwość wejścia, wychodzi z kolejki, wchodzi do środka i blokuje pozostałym pisarzom możliwość pisania:
-        sem_wait(&writing);
-        writersInQueue[nr] = 0;
-        writersInReadingRoom[nr] = 1;
-        printf("\n(wejście pisarza nr %d do środka) \n", nr);
-
-        whoIsWhere();
-
-        // pisarz korzysta z biblioteki:
-        waiting();
-
-        // wychodzi ze środka i odblokowuje dostęp dla pisarzy:
-        writersInReadingRoom[nr] = 0;
-        sem_post(&writing);
-
-        // czas, po którym pisarz wróci do kolejki:
-        waiting();
-    }
-    return 0;
-}
-
-int main (int argc, char *argv[]){
-    if (argc < 3 || argc > 4) {
-        perror("Wrong arguments");
-        exit(EXIT_FAILURE);
-    }
-
-    else {
-        char *c;
-        numberOfReaders = strtol(argv[1], &c, 10);
-        numberOfWriters = strtol(argv[2], &c, 10);
-        if (argc == 4) {
-            if (strcmp(argv[3], "-debug") != 0) {
-                perror("Wrong arguments");
-                exit(EXIT_FAILURE);
-            }
-            else debug = true;
-        }
-    }
-
+void init() {
     // inizjalizacja tablic wątków
     if ((readersThreads = malloc (sizeof(pthread_t) * numberOfReaders)) == NULL) {
         perror("Allocation error");
@@ -220,7 +137,7 @@ int main (int argc, char *argv[]){
         readersInQueue[i] = 0;
     }
 
-    // inicjalizacja semaforów
+    // inicjalizacja semaforów:
     if (sem_init(&reading, 0, 1) != 0) {
         perror("Sem_init error");
         exit(EXIT_FAILURE);
@@ -230,28 +147,117 @@ int main (int argc, char *argv[]){
         perror("Sem_init error");
         exit(EXIT_FAILURE);
     }
+}
+
+void *reader (void *arg){
+    int nr = *((int*)arg);
+    while(1) {
+        // czytelnik wchodzi do kolejki
+        readersInQueue[nr] = 1;
+
+        // czeka na możliwość wejścia, wychodzi z kolejki, wchodzi do środka:
+        sem_wait(&reading);
+        numberOfUsingResources++;
+        if (numberOfUsingResources == 1) {   // jeżeli będzie pierwszym czytelnikiem, blokuje pisarzom możliwość pisania:
+            sem_wait(&writing);
+        }
+        readersInQueue[nr] = 0;
+        readersInReadingRoom[nr] = 1;
+//        printf("\n(wejście czytelnika nr %d do środka)\n", nr);
+
+        whoIsWhere();
+
+        sem_post(&reading);
+
+        // korzysta z biblioteki:
+        waiting();
+
+        // wychodzi ze środka:
+        sem_wait(&reading);
+        numberOfUsingResources--;
+        if (numberOfUsingResources == 0) {   // jeżeli był ostatnim czytelnikiem, odblokowuje pisarzom możliwość pisania:
+            sem_post(&writing);
+        }
+        readersInReadingRoom[nr] = 0;
+        sem_post(&reading);
+
+        // czas, po którym czytelnik wróci do kolejki:
+        waiting();
+    }
+    pthread_exit(0);
+}
+
+void *writer (void *arg){
+    int nr = *((int*)arg);
+    while (1) {
+        // pisarz wchodzi do kolejki:
+        writersInQueue[nr] = 1;
+
+        //  ma możliwość wejścia, wychodzi z kolejki, wchodzi do środka i blokuje pozostałym pisarzom możliwość pisania:
+        sem_wait(&writing);
+        writersInQueue[nr] = 0;
+        writersInReadingRoom[nr] = 1;
+//        printf("\n(wejście pisarza nr %d do środka) \n", nr);
+
+        whoIsWhere();
+
+        // pisarz korzysta z biblioteki:
+        waiting();
+
+        // wychodzi ze środka i odblokowuje dostęp dla pisarzy:
+        writersInReadingRoom[nr] = 0;
+        sem_post(&writing);
+
+        // czas, po którym pisarz wróci do kolejki:
+        waiting();
+    }
+    pthread_exit(0);
+}
+
+int main (int argc, char *argv[]){
+    // wczytanie ilości czytelników i pisarzy oraz ewentualnie opcji -debug:
+    if (argc < 3 || argc > 4) {
+        perror("Wrong arguments");
+        exit(EXIT_FAILURE);
+    }
+    else {
+        char *c;
+        numberOfReaders = strtol(argv[1], &c, 10);
+        numberOfWriters = strtol(argv[2], &c, 10);
+        if (argc == 4) {
+            if (strcmp(argv[3], "-debug") != 0) {
+                perror("Wrong arguments");
+                exit(EXIT_FAILURE);
+            }
+            else debug = true;
+        }
+    }
+
+    init();
+
+    printf("Program wypisuje aktualny stan kolejki i czytelni za każdym razem, gdy kolejna osoba wejdzie do środka.\n");
 
 //    stworzenie wątku dla każdego czytelnika i pisarza:
-    int err, *nr;
+    int *nr;
     for (int i = 0; i < numberOfReaders; i++) {
-        nr = (int*)malloc(sizeof(int));
+        nr = (int*)malloc (sizeof(int));
         *nr = i;
-        if ((err = pthread_create( &readersThreads[i], NULL, &reader, nr)) != 0) {
-            fprintf (stderr, "Thread creation error = %d (%s)\n", err, strerror (err));
+        if (pthread_create(&readersThreads[i], NULL, &reader, nr) != 0) {
+            perror("Failed to create a thread");
             exit(EXIT_FAILURE);
         }
     }
 
     for (int i = 0; i < numberOfWriters; i++) {
-        nr = (int*)malloc(sizeof(int));
+        nr = (int*)malloc (sizeof(int));
         *nr = i;
-        if ((err = pthread_create( &writersThreads[i], NULL, &writer, nr)) != 0) {
-            fprintf (stderr, "Thread creation error = %d (%s)\n", err, strerror (err));
+        if (pthread_create(&writersThreads[i], NULL, &writer, nr) != 0) {
+            perror("Failed to create a thread");
             exit(EXIT_FAILURE);
         }
     }
 
-    // oczzekiwanie na zakończenie wątków czytelników i pisarzy:
+    // oczekiwanie na zakończenie wątków czytelników i pisarzy:
     for (int i = 0; i < numberOfReaders; ++i) {
         if (pthread_join(writersThreads[i], NULL) != 0) {
             perror("Pthread_join error");
@@ -268,6 +274,10 @@ int main (int argc, char *argv[]){
 
     free(readersThreads);
     free(writersThreads);
+    free(readersInQueue);
+    free(writersInQueue);
+    free(readersInReadingRoom);
+    free(writersInReadingRoom);
     sem_destroy(&reading);
     sem_destroy(&writing);
 
