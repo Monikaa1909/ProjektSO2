@@ -277,8 +277,8 @@ int main (int argc, char *argv[]){
     free(writersInQueue);
     free(readersInReadingRoom);
     free(writersInReadingRoom);
-    sem_destroy(&reader);
-    sem_destroy(&writer);
+    sem_destroy(&reading);
+    sem_destroy(&writing);
 
     pthread_exit(0);
 }
