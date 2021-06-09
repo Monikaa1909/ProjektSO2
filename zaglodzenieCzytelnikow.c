@@ -267,6 +267,8 @@ int main (int argc, char *argv[]) {
     printf("Program wypisuje aktualny stan kolejki i czytelni za każdym razem, gdy kolejna osoba wejdzie do środka.\n");
 
     // stworzenie wątku dla każdego czytelnika i pisarza:
+
+
     int *nr;
     for (int i = 0; i < numberOfReaders; i++) {
         nr = (int*)malloc (sizeof(int));

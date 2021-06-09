@@ -237,12 +237,12 @@ int main (int argc, char *argv[]){
     printf("Program wypisuje aktualny stan kolejki i czytelni za każdym razem, gdy kolejna osoba wejdzie do środka.\n");
 
     //    stworzenie wątku dla każdego czytelnika i pisarza:
-    int *nr;
+    int *nr, err;
     for (int i = 0; i < numberOfReaders; i++) {
         nr = (int*)malloc (sizeof(int));
         *nr = i;
-        if (pthread_create(&readersThreads[i], NULL, &reader, nr) != 0) {
-            perror("Failed to create a thread");
+        if ((err = pthread_create(&readersThreads[i], NULL, &reader, nr)) != 0) {
+            fprintf (stderr, "Thread creation error = %d (%s)\n", err, strerror (err));
             exit(EXIT_FAILURE);
         }
     }
@@ -250,8 +250,8 @@ int main (int argc, char *argv[]){
     for (int i = 0; i < numberOfWriters; i++) {
         nr = (int*)malloc (sizeof(int));
         *nr = i;
-        if (pthread_create(&writersThreads[i], NULL, &writer, nr) != 0) {
-            perror("Failed to create a thread");
+        if ((err = pthread_create(&writersThreads[i], NULL, &writer, nr)) != 0) {
+            fprintf (stderr, "Thread creation error = %d (%s)\n", err, strerror (err));
             exit(EXIT_FAILURE);
         }
     }
