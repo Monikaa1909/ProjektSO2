@@ -103,13 +103,19 @@ void *reader_(void *arg) {
         readersInQueue[nr] = 1;
 
         // czytelnik czeka na możliwość wejścia do środka:
-        sem_wait(&tryResource);
+        if(sem_wait(&tryResource) == 1) {
+            perror("sem_wait");
+        }
 
         // uzyskał możliwość wejścia, wychodzi z kolejki, wchodzi do środka:
-        sem_wait(&reader);
+        if(sem_wait(&reader) == 1) {
+            perror("sem_wait");
+        }
         numberOfReadersInReadingRoom++;
         if (numberOfReadersInReadingRoom == 1) {  // jeśli jest pierwszym czytelnikiem w czytelni, zablokuj możliwość dostępu do zasobów czytelni
-            sem_wait(&resource);
+            if(sem_wait(&resource) == 1) {
+                perror("sem_wait");
+            }
         }
 
         readersInQueue[nr] = 0;
@@ -118,8 +124,12 @@ void *reader_(void *arg) {
 
         whoIsWhere();
 
-        sem_post(&reader);
-        sem_post(&tryResource); // inni czytelnicy mogą próbować wchodzić do środka, skoro w środku aktualnie jest czytelnik
+        if(sem_post(&reader) == 1) {
+            perror("sem_wait");
+        }
+        if(sem_post(&tryResource) == 1) {
+            perror("sem_post");
+        } // inni czytelnicy mogą próbować wchodzić do środka, skoro w środku aktualnie jest czytelnik
 
         // korzysta z biblioteki:
         waiting();
@@ -129,9 +139,13 @@ void *reader_(void *arg) {
         numberOfReadersInReadingRoom--;
         readersInReadingRoom[nr] = 0;
         if (numberOfReadersInReadingRoom == 0) {  // jeśli był ostatnim czytelnikiem w czytelni, umożliwia dostęp do zasobów czytelni
-            sem_post(&resource);
+            if (sem_post(&resource) == 1) {
+                perror("sem_post");
+            }
         }
-        sem_post(&reader);
+        if(sem_post(&reader) == 1) {
+            perror("sem_post");
+        }
 
         // czas, po którym czytelnik wróci do kolejki:
         waiting();
@@ -143,14 +157,20 @@ void *writer_(void *arg) {
     int nr = *((int*)arg);
     while(1) {
         // pisarz wchodzi do kolejki:
-        sem_wait(&writer);
+        if(sem_wait(&writer) == 1) {
+            perror("sem_wait");
+        }
         numberOfWaitingWriters++;
         if (numberOfWaitingWriters == 1) {   // jeżeli jest pierwszym pisarzem w kolejce, blokuje możliwość próby wejścia do czytelni dla czytelników:
-            sem_wait(&tryResource);
+            if(sem_wait(&tryResource) == 1) {
+                perror("sem_wait")
+            }
         }
         printf("\n(wejście pisarza nr %d do kolejki!)\n", nr);
         writersInQueue[nr] = 1;
-        sem_post(&writer);
+        if(sem_post(&writer) == 1) {
+            perror("sem_post");
+        }
 
         //  czeka na dostęp do zasobów czytelni, wychodzi z kolejki, wchodzi do środka i blokuje innym pisarzom możliwość wejścia:
         sem_wait(&resource);
@@ -163,14 +183,22 @@ void *writer_(void *arg) {
         waiting();
 
         // wychodzi, zwalniając dostęp do czytelni:
-        sem_post(&resource);
-        sem_wait(&writer);
+        if(sem_post(&resource) == 1) {
+            perror("sem_post");
+        }
+        if (sem_wait(&writer) == 1) {
+            perror("sem_wait");
+        }
         numberOfWaitingWriters--;
         if (numberOfWaitingWriters == 0) {   // jeżeli nie ma już czekających pisarzy, czytelnicy mogą próbować wejść:
-            sem_post(&tryResource);
+            if(sem_post(&tryResource) == 1) {
+                perror("sem_post");
+            }
         }
         writersInReadingRoom[nr] = 0;
-        sem_post(&writer);
+        if(sem_post(&writer) == 1) {
+            perror("sem_post");
+        }
 
         // czas, po którym czytelnik wróci do kolejki:
         waiting();
