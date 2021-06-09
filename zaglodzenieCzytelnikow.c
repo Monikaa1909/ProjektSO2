@@ -135,17 +135,19 @@ void *reader_(void *arg) {
         waiting();
 
         // wychodzi ze środka:
-        sem_wait(&reader);
+        if(sem_wait(&reader) == 1) {
+            perror("sem_wait");
+        }
+
         numberOfReadersInReadingRoom--;
         readersInReadingRoom[nr] = 0;
         if (numberOfReadersInReadingRoom == 0) {  // jeśli był ostatnim czytelnikiem w czytelni, umożliwia dostęp do zasobów czytelni
-            if (sem_post(&resource) == 1) {
-                perror("sem_post");
-            }
+            sem_post(&resource);
         }
         if(sem_post(&reader) == 1) {
             perror("sem_post");
         }
+
 
         // czas, po którym czytelnik wróci do kolejki:
         waiting();
@@ -163,7 +165,7 @@ void *writer_(void *arg) {
         numberOfWaitingWriters++;
         if (numberOfWaitingWriters == 1) {   // jeżeli jest pierwszym pisarzem w kolejce, blokuje możliwość próby wejścia do czytelni dla czytelników:
             if(sem_wait(&tryResource) == 1) {
-                perror("sem_wait")
+                perror("sem_wait");
             }
         }
         printf("\n(wejście pisarza nr %d do kolejki!)\n", nr);
@@ -173,7 +175,9 @@ void *writer_(void *arg) {
         }
 
         //  czeka na dostęp do zasobów czytelni, wychodzi z kolejki, wchodzi do środka i blokuje innym pisarzom możliwość wejścia:
-        sem_wait(&resource);
+        if(sem_wait(&resource)) {
+            perror("sem_wait");
+        }
         writersInQueue[nr] = 0;
         writersInReadingRoom[nr] = 1;
         printf("\n(wejście pisarza nr %d do środka)", nr);
@@ -295,14 +299,12 @@ int main (int argc, char *argv[]) {
     printf("Program wypisuje aktualny stan kolejki i czytelni za każdym razem, gdy kolejna osoba wejdzie do środka.\n");
 
     // stworzenie wątku dla każdego czytelnika i pisarza:
-
-
-    int *nr;
+    int *nr, err;
     for (int i = 0; i < numberOfReaders; i++) {
         nr = (int*)malloc (sizeof(int));
         *nr = i;
-        if (pthread_create(&readersThreads[i], NULL, &reader_, nr) != 0) {
-            perror("Failed to create a thread");
+        if ((err = pthread_create(&readersThreads[i], NULL, &reader_, nr)) != 0) {
+            fprintf (stderr, "Thread creation error = %d (%s)\n", err, strerror (err));
             exit(EXIT_FAILURE);
         }
     }
@@ -310,8 +312,8 @@ int main (int argc, char *argv[]) {
     for (int i = 0; i < numberOfWriters; i++) {
         nr = (int*)malloc (sizeof(int));
         *nr = i;
-        if (pthread_create(&writersThreads[i], NULL, &writer_, nr) != 0) {
-            perror("Failed to create a thread");
+        if ((err = pthread_create(&writersThreads[i], NULL, &writer_, nr)) != 0) {
+            fprintf (stderr, "Thread creation error = %d (%s)\n", err, strerror (err));
             exit(EXIT_FAILURE);
         }
     }
@@ -340,6 +342,6 @@ int main (int argc, char *argv[]) {
     sem_destroy(&writer);
     sem_destroy(&tryResource);
     sem_destroy(&resource);
-    
+
     pthread_exit(0);
-} 
+}

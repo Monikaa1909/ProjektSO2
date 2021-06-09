@@ -145,14 +145,10 @@ void *reader (void *arg){
         readersInQueue[nr] = 1;
 
         // czeka na możliwość wejścia, wychodzi z kolejki, wchodzi do środka:
-        if (sem_wait(&reading) == 1) {
-            perror("sem_wait");
-        }
+        sem_wait(&reading);
         numberOfUsingResources++;
         if (numberOfUsingResources == 1) {   // jeżeli będzie pierwszym czytelnikiem, blokuje pisarzom możliwość pisania:
-            if(sem_post(&writing) == 1) {
-            perror("sem_post");
-        }
+            sem_wait(&writing);
         }
         readersInQueue[nr] = 0;
         readersInReadingRoom[nr] = 1;
@@ -160,27 +156,19 @@ void *reader (void *arg){
 
         whoIsWhere();
 
-        if(sem_post(&reading) == 1) {
-            perror("sem_post");
-        }
+        sem_post(&reading);
 
         // korzysta z biblioteki:
         waiting();
 
         // wychodzi ze środka:
-        if (sem_wait(&reading) == 1) {
-            perror("sem_wait");
-        }
+        sem_wait(&reading);
         numberOfUsingResources--;
         if (numberOfUsingResources == 0) {   // jeżeli był ostatnim czytelnikiem, odblokowuje pisarzom możliwość pisania:
-            if(sem_post(&writing) == 1) {
-            perror("sem_post");
-        }
+            sem_post(&writing);
         }
         readersInReadingRoom[nr] = 0;
-        if(sem_post(&reading) == 1) {
-            perror("sem_post");
-        }
+        sem_post(&reading);
 
         // czas, po którym czytelnik wróci do kolejki:
         waiting();
@@ -195,9 +183,7 @@ void *writer (void *arg){
         writersInQueue[nr] = 1;
 
         //  ma możliwość wejścia, wychodzi z kolejki, wchodzi do środka i blokuje pozostałym pisarzom możliwość pisania:
-        if (sem_wait(&writing) == 1) {
-            perror("sem_wait");
-        }
+        sem_wait(&writing);
         writersInQueue[nr] = 0;
         writersInReadingRoom[nr] = 1;
         printf("\n(wejście pisarza nr %d do środka) \n", nr);
@@ -209,9 +195,7 @@ void *writer (void *arg){
 
         // wychodzi ze środka i odblokowuje dostęp dla pisarzy:
         writersInReadingRoom[nr] = 0;
-        if(sem_post(&writing) == 1) {
-            perror("sem_post");
-        }
+        sem_post(&writing);
 
         // czas, po którym pisarz wróci do kolejki:
         waiting();
